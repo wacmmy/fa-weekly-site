@@ -21,6 +21,7 @@ function parse(file){
 const linkify=s=>esc(s).replace(/(https?:\/\/[^\s<，。）)]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
 function renderBody(t){
   return t.split(/\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
+    if(l==='---') return '<hr>';
     if(/^#{1,3}\s/.test(l)) return `<h3>${linkify(l.replace(/^#+\s/,''))}</h3>`;
     if(/^(来源|官方博客|仓库|中文报道|转载|路透)[：:]|^https?:\/\//.test(l)) return `<p class="src">${linkify(l)}</p>`;
     if(/^【.*】$/.test(l)||/^[一二三四五六七八九十]+、/.test(l)||(l.length<=24&&!/[。；，]/.test(l))) return `<h3>${linkify(l)}</h3>`;
@@ -45,8 +46,9 @@ fs.rmSync(OUT,{recursive:true,force:true}); fs.mkdirSync(OUT+'/p',{recursive:tru
 fs.writeFileSync(OUT+'/style.css',CSS);
 const [top,...rest]=posts; const subs=rest.slice(0,2);
 const L=top.body.split('\n').map(s=>s.trim());
-let points=L.filter(l=>/^\d+\.\s*/.test(l)).map(l=>l.replace(/^\d+\.\s*/,'').split('。')[0]);
-if(!points.length) points=L.filter(l=>l.length>8&&l.length<=60&&!/[。：:]/.test(l)&&!/^https?:/.test(l));
+const plain=L.map(l=>l.replace(/^#{1,3}\s+/,''));
+let points=plain.filter(l=>/^\d+\.\s*/.test(l)).map(l=>l.replace(/^\d+\.\s*/,'').split('。')[0]);
+if(!points.length) points=plain.filter(l=>l.length>8&&l.length<=60&&!/[。：:]/.test(l)&&!/^https?:/.test(l)&&l!=='---');
 points=points.slice(0,6);
 const home=`<section class="hero"><div class="kicker">本周头条 · ${fmtDate(top.date)} ${top.time} · ${TYPE[top.type]}</div>
 <h1><a href="p/${top.slug}.html">${esc(top.headline)}</a></h1><p class="lede">${esc(top.summary)}</p>

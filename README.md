@@ -23,6 +23,15 @@ Frontmatter：
 
 正文空行分段。短行渲染为小标题；以「来源」「仓库」等开头，或单独一行的链接，渲染为来源行。
 
+用二级标题把一期分成两个新闻区域：
+
+| 标题 | 栏目页 | 导航 |
+| --- | --- | --- |
+| `## 国内` | `cn.html` | 国内新闻 |
+| `## 国际` | `intl.html` | 国际新闻 |
+
+每组里用 `### 1.` 这样的三级标题写条目。构建仍把整份 markdown 做成一期周报详情；栏目页只抽出对应标题下的条目和来源。`## 空组说明` 留在全文里，不进栏目。`eu.html` 与 `jpkr.html` 会跳到 `intl.html`。
+
 ## 本地构建
 
 需要 Node.js 18 及以上。
@@ -31,7 +40,9 @@ Frontmatter：
 npm run build
 ```
 
-等价于 `node build.mjs`。产物在 `dist/`：`index.html`、`p/{slug}.html`、`style.css`。
+等价于 `node build.mjs`。产物在 `dist/`：`index.html`、`cn.html`、`intl.html`、`p/{slug}.html`、`style.css`。
+
+导航是「首页｜国内新闻｜国际新闻」。首页头条仍是最新一整期周报。
 
 ## GitHub Pages
 

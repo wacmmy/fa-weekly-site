@@ -1,6 +1,8 @@
 // 零依赖构建脚本：读取 content/*-weekly-*.md，生成 dist/。
-// 每期仍是一篇周报（type: weekly），供首页头条和详情页使用。
-// ## 国内 / ## 国际 抽出两个栏目页：cn.html、intl.html。
+// 每期仍是一篇周报（type: weekly）。全文按区域拆开：
+// p/{slug}-cn.html、p/{slug}-intl.html 各放一组条目和来源。
+// p/{slug}.html 只做枢纽，链到这两页，不再同时放下两组全文。
+// ## 国内 / ## 国际 的栏目列表仍是 cn.html、intl.html。
 // 旧路径 eu.html、jpkr.html 跳转到 intl.html。
 import fs from 'node:fs'; import path from 'node:path';
 const SRC='content', OUT='dist';
@@ -62,30 +64,42 @@ function splitSections(body){
   })}));
 }
 const linkify=s=>esc(s).replace(/(https?:\/\/[^\s<，。）)]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
-function renderBody(t){
-  let region='', n=0;
-  return t.split(/\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
-    if(l==='---') return '<hr>';
+// only: 只输出该区域全文。hub: 跳过各区域条目，留下导语和空组说明。
+function renderBody(t, opt={}){
+  let region='', n=0, skip=!!opt.only;
+  const html=[];
+  for(const raw of t.split(/\n/)){
+    const l=raw.trim();
+    if(!l) continue;
     const hm=l.match(/^(#{1,3})\s+(.*)$/);
+    if(hm && hm[1].length===2){
+      const text=hm[2], key=regionKey(text);
+      region=key; n=0;
+      if(opt.only) skip=key!==opt.only;
+      else if(opt.hub) skip=!!key;
+      if(skip) continue;
+      html.push(key?`<h3 id="${key}" class="sec-${key}">${linkify(text)}</h3>`:`<h3>${linkify(text)}</h3>`);
+      continue;
+    }
+    if(l==='---'){ if(!opt.only && !skip) html.push('<hr>'); continue; }
+    if(skip) continue;
     if(hm){
-      const text=hm[2], marks=hm[1].length;
-      if(marks===2){
-        const key=regionKey(text);
-        region=key; n=0;
-        return key?`<h3 id="${key}" class="sec-${key}">${linkify(text)}</h3>`:`<h3>${linkify(text)}</h3>`;
-      }
-      if(marks===3 && region){
+      const text=hm[2];
+      if(hm[1].length===3 && region){
         n+=1;
         const num=(text.match(/^(\d+)\s*[.．、]/)||[])[1]||String(n);
-        return `<h3 id="${region}-${num}">${linkify(text)}</h3>`;
+        html.push(`<h3 id="${region}-${num}">${linkify(text)}</h3>`);
+        continue;
       }
-      return `<h3>${linkify(text)}</h3>`;
+      html.push(`<h3>${linkify(text)}</h3>`);
+      continue;
     }
-    if(/^(来源|官方博客|仓库|中文报道|转载|路透)[：:]|^https?:\/\//.test(l)) return `<p class="src">${linkify(l)}</p>`;
-    if(/^【.*】$/.test(l)||/^[一二三四五六七八九十]+、/.test(l)||(l.length<=24&&!/[。；，]/.test(l))) return `<h3>${linkify(l)}</h3>`;
-    if(l.length<=60&&!/。$/.test(l)&&!/[。]/.test(l)) return `<h4>${linkify(l)}</h4>`;
-    return `<p>${linkify(l)}</p>`;
-  }).join('\n');
+    if(/^(来源|官方博客|仓库|中文报道|转载|路透)[：:]|^https?:\/\//.test(l)){ html.push(`<p class="src">${linkify(l)}</p>`); continue; }
+    if(/^【.*】$/.test(l)||/^[一二三四五六七八九十]+、/.test(l)||(l.length<=24&&!/[。；，]/.test(l))){ html.push(`<h3>${linkify(l)}</h3>`); continue; }
+    if(l.length<=60&&!/。$/.test(l)&&!/[。]/.test(l)){ html.push(`<h4>${linkify(l)}</h4>`); continue; }
+    html.push(`<p>${linkify(l)}</p>`);
+  }
+  return html.join('\n');
 }
 const fmtDate=d=>{const [y,m,dd]=d.split('-');return `${y}年${+m}月${+dd}日`};
 const fmtMD=d=>{const [,m,dd]=d.split('-');return `${+m}月${+dd}日`;};
@@ -114,8 +128,9 @@ function regionStrip(post){
     return `<a class="${r.key}" href="${r.key}.html"><strong>${r.label}</strong><span>本周 ${n} 条</span></a>`;
   }).join('')}</div>`;
 }
+function regionHref(post, region){ return `p/${post.slug}-${region.key}.html`; }
 function itemCard(post, region, it){
-  const href=`p/${post.slug}.html#${it.id}`;
+  const href=`${regionHref(post, region)}#${it.id}`;
   return `<article class="card"><div class="meta"><span class="tag ${region.key}">${region.label}</span><span class="when">${fmtMD(post.date)} ${post.time}</span></div><h3>${esc(it.title)}</h3><p>${esc(it.summary)}</p>${it.src?`<p class="src">${linkify(it.src)}</p>`:''}<div class="cf"><span>${it.urls.length} 个来源</span><span class="read">阅读 →</span></div><a class="stretch" href="${href}" aria-label="${esc(it.title)}"></a></article>`;
 }
 function regionPage(region, posts){
@@ -124,14 +139,17 @@ function regionPage(region, posts){
     const sec=splitSections(p.body).find(s=>s.key===region.key);
     if(!sec||!sec.items.length) return '';
     total+=sec.items.length;
-    return `<section class="day"><h2 class="dh">${fmtDate(p.date)} · ${sec.items.length} 条 · <a href="p/${p.slug}.html#${region.key}">本期周报</a></h2><div class="grid">${sec.items.map(it=>itemCard(p,region,it)).join('')}</div></section>`;
+    return `<section class="day"><h2 class="dh">${fmtDate(p.date)} · ${sec.items.length} 条 · <a href="${regionHref(p, region)}">本期全文</a></h2><div class="grid">${sec.items.map(it=>itemCard(p,region,it)).join('')}</div></section>`;
   }).filter(Boolean).join('');
-  const inner=`<h1 class="ph1 ${region.key}">${region.label}</h1><p class="lede">从各期周报抽出的${region.label}条目，共 ${total} 条。来源在卡片上，点进卡片阅读当期周报里的全文。</p>${blocks||'<p class="lede">暂无该分组内容。</p>'}`;
+  const inner=`<h1 class="ph1 ${region.key}">${region.label}</h1><p class="lede">从各期周报抽出的${region.label}条目，共 ${total} 条。来源在卡片上，点进卡片阅读该栏目全文。</p>${blocks||'<p class="lede">暂无该分组内容。</p>'}`;
   return page(`${region.label} · 工控周报`, region.key, inner);
 }
-function jumps(body){
-  const secs=splitSections(body);
-  const links=REGIONS.filter(r=>secs.some(s=>s.key===r.key&&s.items.length)).map(r=>`<a class="${r.key}" href="#${r.key}">${r.label}</a>`).join('');
+function jumps(post){
+  const secs=splitSections(post.body);
+  const links=REGIONS.filter(r=>secs.some(s=>s.key===r.key&&s.items.length)).map(r=>{
+    const n=secs.find(s=>s.key===r.key).items.length;
+    return `<a class="${r.key}" href="${post.slug}-${r.key}.html">${r.label} · ${n} 条</a>`;
+  }).join('');
   return links?`<div class="jumps">${links}</div>`:'';
 }
 const posts=fs.readdirSync(SRC).filter(f=>f.endsWith('.md')).map(parse)
@@ -151,7 +169,16 @@ for(const r of REGIONS) fs.writeFileSync(`${OUT}/${r.key}.html`, regionPage(r, p
 const redirect=href=>`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${href}"><link rel="canonical" href="${href}"><title>转到${esc(href)}</title></head><body><p><a href="${href}">${esc(href)}</a></p></body></html>`;
 fs.writeFileSync(OUT+'/eu.html', redirect('intl.html'));
 fs.writeFileSync(OUT+'/jpkr.html', redirect('intl.html'));
-for(const p of posts) fs.writeFileSync(`${OUT}/p/${p.slug}.html`, page(p.title,'',`<article class="post"><div class="meta"><span class="tag ${p.type}">${TYPE[p.type]}</span><span>${fmtDate(p.date)} ${p.time}（上海时间）</span><span>${p.items} 条</span></div><h1>${esc(p.headline)}</h1><div class="sub">${esc(p.title)}</div><p class="lede">${esc(p.summary)}</p>${jumps(p.body)}<div class="body">${renderBody(p.body)}</div><a class="back" href="../index.html">← 返回首页</a></article>`,'../'));
+for(const p of posts){
+  fs.writeFileSync(`${OUT}/p/${p.slug}.html`, page(p.title,'',`<article class="post"><div class="meta"><span class="tag ${p.type}">${TYPE[p.type]}</span><span>${fmtDate(p.date)} ${p.time}（上海时间）</span><span>${p.items} 条</span></div><h1>${esc(p.headline)}</h1><div class="sub">${esc(p.title)}</div><p class="lede">${esc(p.summary)}</p>${jumps(p)}<div class="body">${renderBody(p.body,{hub:true})}</div><a class="back" href="../index.html">← 返回首页</a></article>`,'../'));
+  for(const r of REGIONS){
+    const sec=splitSections(p.body).find(s=>s.key===r.key);
+    const n=sec?sec.items.length:0;
+    if(!n) continue;
+    const inner=`<article class="post"><div class="meta"><span class="tag ${r.key}">${r.label}</span><span>${fmtDate(p.date)} ${p.time}（上海时间）</span><span>${n} 条</span></div><h1>${esc(p.headline)}</h1><div class="sub">${esc(r.label)} · ${esc(p.title)}</div><div class="body">${renderBody(p.body,{only:r.key})}</div><a class="back" href="../${r.key}.html">← 返回${r.label}</a></article>`;
+    fs.writeFileSync(`${OUT}/p/${p.slug}-${r.key}.html`, page(`${r.label} · ${p.title}`, r.key, inner, '../'));
+  }
+}
 
 function assertSite(){
   const html=f=>fs.readFileSync(path.join(OUT,f),'utf8');
@@ -164,10 +191,9 @@ function assertSite(){
     if(!pageHtml.includes('url=intl.html')) throw new Error(old+' 未跳转到 intl.html');
   }
   for(const p of posts){
-    const pageHtml=html(`p/${p.slug}.html`);
-    const urls=[...p.body.matchAll(/https?:\/\/[^\s<，。）)]+/g)].map(x=>x[0]);
-    for(const u of urls) if(!pageHtml.includes(u)&&!pageHtml.includes(esc(u))) throw new Error('全文丢失来源 '+u);
-    if(!pageHtml.includes('空组说明')&&p.body.includes('空组说明')) throw new Error('丢失空组说明');
+    const hub=html(`p/${p.slug}.html`);
+    if(!hub.includes('空组说明')&&p.body.includes('空组说明')) throw new Error('丢失空组说明');
+    if(/id="(?:cn|intl)-\d+"/.test(hub)) throw new Error('枢纽页仍含栏目全文');
     const secs=splitSections(p.body);
     const expect={cn:0,intl:0}; let key='';
     for(const line of p.body.split('\n')){
@@ -175,6 +201,7 @@ function assertSite(){
       if(h2){ key=regionKey(h2[1].trim()); continue; }
       if(key&&/^###\s+/.test(line)) expect[key]++;
     }
+    const seen=new Set();
     let total=0;
     for(const r of REGIONS){
       const s=secs.find(x=>x.key===r.key);
@@ -183,11 +210,33 @@ function assertSite(){
       total+=n;
       const region=html(`${r.key}.html`);
       if(region.includes('品牌')) throw new Error(r.key+' 页仍有品牌字样');
-      for(const it of (s?s.items:[])){
+      if(!n) continue;
+      const detailName=`p/${p.slug}-${r.key}.html`;
+      const detail=html(detailName);
+      if(!hub.includes(`${p.slug}-${r.key}.html`)) throw new Error('枢纽未链到 '+detailName);
+      if(!detail.includes(`id="${r.key}"`)) throw new Error(detailName+' 缺少区域标题');
+      if(detail.includes('空组说明')) throw new Error(detailName+' 不该放空组说明');
+      const other=REGIONS.find(x=>x.key!==r.key);
+      const otherItems=(secs.find(x=>x.key===other.key)?.items)||[];
+      for(const it of otherItems) if(detail.includes(esc(it.title))) throw new Error(`${detailName} 混入 ${it.title}`);
+      for(const it of s.items){
+        const mark=it.summary.replace(/…$/,'').slice(0,40);
         if(!region.includes(esc(it.title))) throw new Error(`${r.key} 缺少条目 ${it.title}`);
-        if(!pageHtml.includes(`id="${it.id}"`)) throw new Error('全文缺少锚点 '+it.id);
-        for(const u of it.urls) if(!region.includes(u)&&!region.includes(esc(u))) throw new Error(`${r.key} 缺少来源 ${u}`);
+        if(!region.includes(regionHref(p, r))) throw new Error(`${r.key} 卡片未链到栏目全文`);
+        if(!detail.includes(`id="${it.id}"`)) throw new Error(detailName+' 缺少锚点 '+it.id);
+        if(mark.length>=20 && !detail.includes(esc(mark))) throw new Error(detailName+' 缺少正文 '+it.title);
+        if(mark.length>=20 && (hub.includes(mark)||hub.includes(esc(mark)))) throw new Error('枢纽页仍含正文 '+it.title);
+        for(const u of it.urls){
+          if(!detail.includes(u)&&!detail.includes(esc(u))) throw new Error(`${detailName} 缺少来源 ${u}`);
+          if(!region.includes(u)&&!region.includes(esc(u))) throw new Error(`${r.key} 缺少来源 ${u}`);
+          seen.add(u);
+        }
       }
+    }
+    const urls=[...p.body.matchAll(/https?:\/\/[^\s<，。）)]+/g)].map(x=>x[0]);
+    for(const u of urls){
+      const onHub=hub.includes(u)||hub.includes(esc(u));
+      if(!seen.has(u)&&!onHub) throw new Error('来源丢失 '+u);
     }
     if(p.items&&total!==p.items) throw new Error(`${p.slug} 抽出 ${total} 条，frontmatter 为 ${p.items}`);
   }

@@ -30,7 +30,7 @@ Frontmatter：
 | `## 国内` | `cn.html` | 国内新闻 |
 | `## 国际` | `intl.html` | 国际新闻 |
 
-每组里用 `### 1.` 这样的三级标题写条目。构建仍把整份 markdown 做成一期周报详情；栏目页只抽出对应标题下的条目和来源。`## 空组说明` 留在全文里，不进栏目。`eu.html` 与 `jpkr.html` 会跳到 `intl.html`。
+每组里用 `### 1.` 这样的三级标题写条目。构建把一组的条目和来源写成单独全文：`p/{slug}-cn.html`、`p/{slug}-intl.html`。原来的 `p/{slug}.html` 只做枢纽，链到这两页，并留下导语和 `## 空组说明`，不再把两组全文放在同一页。栏目页卡片链到对应全文。`eu.html` 与 `jpkr.html` 会跳到 `intl.html`。
 
 ## 本地构建
 
@@ -40,9 +40,9 @@ Frontmatter：
 npm run build
 ```
 
-等价于 `node build.mjs`。产物在 `dist/`：`index.html`、`cn.html`、`intl.html`、`p/{slug}.html`、`style.css`。
+等价于 `node build.mjs`。产物在 `dist/`：`index.html`、`cn.html`、`intl.html`、`p/{slug}.html`（枢纽）、`p/{slug}-cn.html`、`p/{slug}-intl.html`、`style.css`。
 
-导航是「首页｜国内新闻｜国际新闻」。首页头条仍是最新一整期周报。
+导航是「首页｜国内新闻｜国际新闻」。首页头条仍链到本期枢纽，国内和国际全文分开阅读。
 
 ## GitHub Pages
 

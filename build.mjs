@@ -9,8 +9,8 @@ const SRC='content', OUT='dist';
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const TYPE={weekly:'周报',cn:'国内新闻',intl:'国际新闻'};
 const REGIONS=[
-  {key:'cn', label:'国内新闻', test:/国内/},
-  {key:'intl', label:'国际新闻', test:/国际/},
+  {key:'cn', label:'国内新闻', short:'国内', test:/国内/},
+  {key:'intl', label:'国际新闻', short:'国际', test:/国际/},
 ];
 const NAV=[{id:'home', href:'index.html', label:'首页'}, ...REGIONS.map(r=>({id:r.key, href:r.key+'.html', label:r.label}))];
 const NAME=/^(\d{4}-\d{2}-\d{2})-weekly-(\d{4})\.md$/;
@@ -111,21 +111,13 @@ ${NAV.map(n=>`<a href="${root}${n.href}"${active===n.id?' class="on"':''}>${n.la
 const card=(p,withDate=false)=>`<a class="card" href="${p.root||''}p/${p.slug}.html"><div class="meta"><span class="tag ${p.type}">${TYPE[p.type]||p.type}</span><span class="when">${withDate?fmtMD(p.date)+' ':''}${p.time}</span></div><h3>${esc(p.headline)}</h3><p>${esc(p.summary)}</p><div class="cf"><span>${p.items} 条</span><span class="read">阅读 →</span></div></a>`;
 function grouped(list){const g={};for(const p of list)(g[p.date]??=[]).push(p);
   return Object.keys(g).sort().reverse().map(d=>`<section class="day"><h2 class="dh">${fmtDate(d)}</h2><div class="grid">${g[d].map(p=>card(p,false)).join('')}</div></section>`).join('');}
-function heroPoints(body){
-  const secs=splitSections(body), picked=[];
-  for(const r of REGIONS){const s=secs.find(x=>x.key===r.key); if(s) for(const it of s.items.slice(0,2)) picked.push(it.title);}
-  if(picked.length) return picked.slice(0,6);
-  const plain=body.split('\n').map(s=>s.trim().replace(/^#{1,3}\s+/,''));
-  let points=plain.filter(l=>/^\d+\.\s*/.test(l)).map(l=>l.replace(/^\d+\.\s*/,'').split('。')[0]);
-  if(!points.length) points=plain.filter(l=>l.length>8&&l.length<=60&&!/[。：:]/.test(l)&&!/^https?:/.test(l)&&l!=='---');
-  return points.slice(0,6);
-}
 function regionStrip(post){
   const secs=splitSections(post.body);
   if(!secs.length) return '';
   return `<div class="regions">${REGIONS.map(r=>{
-    const n=(secs.find(s=>s.key===r.key)?.items.length)||0;
-    return `<a class="${r.key}" href="${r.key}.html"><strong>${r.label}</strong><span>本周 ${n} 条</span></a>`;
+    const items=(secs.find(s=>s.key===r.key)?.items)||[];
+    const bullets=items.slice(0,3).map(it=>`<li>${esc(it.title)}</li>`).join('');
+    return `<a class="${r.key}" href="${r.key}.html"><strong>${r.short}</strong><span>本周 ${items.length} 条</span>${bullets?`<ul>${bullets}</ul>`:''}</a>`;
   }).join('')}</div>`;
 }
 function regionHref(post, region){ return `p/${post.slug}-${region.key}.html`; }
@@ -157,13 +149,11 @@ const posts=fs.readdirSync(SRC).filter(f=>f.endsWith('.md')).map(parse)
 if(!posts.length) throw new Error('content/ 下没有 markdown');
 fs.rmSync(OUT,{recursive:true,force:true}); fs.mkdirSync(OUT+'/p',{recursive:true});
 fs.writeFileSync(OUT+'/style.css',CSS);
-const [top,...rest]=posts; const subs=rest.slice(0,2);
-const points=heroPoints(top.body);
+const [top,...past]=posts;
 const home=`<section class="hero"><div class="kicker">本周头条 · ${fmtDate(top.date)} ${top.time} · ${TYPE[top.type]}</div>
 <h1><a href="p/${top.slug}.html">${esc(top.headline)}</a></h1><p class="lede">${esc(top.summary)}</p>
-${points.length?`<div class="points"><div class="ph">要点</div><ul>${points.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
 ${regionStrip(top)}</section>
-${subs.length?`<div class="subs">${subs.map(p=>card(p,true)).join('')}</div>`:''}<h2 class="sec">最新周报</h2>${grouped(posts)}`;
+${past.length?`<h2 class="sec">最新周报</h2>${grouped(past)}`:''}`;
 fs.writeFileSync(OUT+'/index.html',page('工控周报','home',home));
 for(const r of REGIONS) fs.writeFileSync(`${OUT}/${r.key}.html`, regionPage(r, posts));
 const redirect=href=>`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${href}"><link rel="canonical" href="${href}"><title>转到${esc(href)}</title></head><body><p><a href="${href}">${esc(href)}</a></p></body></html>`;
@@ -185,6 +175,20 @@ function assertSite(){
   const home=html('index.html');
   for(const label of ['首页','国内新闻','国际新闻','工控周报']) if(!home.includes(label)) throw new Error('首页缺少 '+label);
   if(home.includes('品牌')) throw new Error('首页仍有品牌字样');
+  if(home.includes('class="subs"')||home.includes('class="points"')) throw new Error('首页仍有上一期插卡或混合要点');
+  const latestSecs=splitSections(top.body);
+  for(const r of REGIONS){
+    const items=(latestSecs.find(s=>s.key===r.key)?.items)||[];
+    if(!home.includes(`<strong>${r.short}</strong>`)) throw new Error('首页缺少 '+r.short);
+    if(!home.includes(`href="${r.key}.html"`)) throw new Error('首页未链到 '+r.key+'.html');
+    if(!home.includes(`本周 ${items.length} 条`)) throw new Error('首页缺少'+r.short+'条数');
+    for(const it of items.slice(0,3)) if(!home.includes(esc(it.title))) throw new Error('首页缺少要点 '+it.title);
+  }
+  if((home.split(esc(top.headline)).length-1)!==1) throw new Error('本期标题不该在最新周报里再出现一次');
+  if(posts.length>1){
+    if(!home.includes('最新周报')) throw new Error('首页缺少最新周报');
+    if(!home.includes(esc(posts[1].headline))) throw new Error('最新周报未保留往期');
+  }
   if(!home.includes('每周更新（上海时间）约周一 10:00 · 内容由浩存整理')) throw new Error('页脚文案变了');
   for(const old of ['eu.html','jpkr.html']){
     const pageHtml=html(old);

@@ -6,8 +6,7 @@ h1,h2,h3,.brand{font-family:"Noto Serif CJK SC","Songti SC","Source Han Serif SC
 .brand{font-size:22px;font-weight:700}.nav nav a{margin-left:22px;color:var(--mute)}.nav nav a.on,.nav nav a:hover{color:var(--ink);border-bottom:2px solid var(--ink);padding-bottom:4px}
 .hero{padding:44px 0 24px;border-bottom:1px solid var(--line)}.kicker{color:var(--weekly);font-size:14px;letter-spacing:.08em}
 .hero h1{font-size:40px;line-height:1.3;margin:10px 0 14px}.lede{color:#3d3a34;font-size:17px}
-.points{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 22px;margin-top:18px}.ph{font-weight:600;color:var(--mute);font-size:14px}.points ul{margin:6px 0;padding-left:20px}
-.subs{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:24px 0}.sec{font-size:26px;margin:36px 0 8px}
+.sec{font-size:26px;margin:36px 0 8px}
 .dh{font-size:18px;color:var(--mute);margin:24px 0 12px;border-bottom:1px solid var(--line);padding-bottom:6px}
 /* 按日分组的卡片：auto-fit 会收起空列，一天 1 条拉满、2 条对半、更多再成网格。手机强制单列。 */
 .grid{display:grid;grid-template-columns:1fr;gap:16px}
@@ -17,9 +16,11 @@ h1,h2,h3,.brand{font-family:"Noto Serif CJK SC","Songti SC","Source Han Serif SC
 .meta{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--mute)}.when{white-space:nowrap}.tag{color:#fff;border-radius:4px;padding:1px 8px;font-size:12px}.tag.weekly{background:var(--weekly)}
 .tag.cn{background:var(--cn)}.tag.intl{background:var(--intl)}
 .regions{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:22px}
-.regions a{display:flex;flex-direction:column;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;border-top:3px solid var(--weekly)}
+.regions a{display:flex;flex-direction:column;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;border-top:3px solid var(--weekly)}
 .regions a.cn{border-top-color:var(--cn)}.regions a.intl{border-top-color:var(--intl)}
-.regions strong{font-size:16px}.regions span{color:var(--mute);font-size:13px}
+.regions strong{font-size:18px}.regions span{color:var(--mute);font-size:13px}
+.regions ul{margin:10px 0 0;padding-left:18px;color:#3d3a34;font-size:14px;line-height:1.55}
+.regions li{margin:4px 0}
 .card{position:relative}.card > a.stretch{position:absolute;inset:0}
 .card h3 a:hover,.dh a:hover{text-decoration:underline}
 .card p.src{display:block;-webkit-line-clamp:unset;overflow:visible;margin-top:8px}
@@ -31,7 +32,7 @@ h1,h2,h3,.brand{font-family:"Noto Serif CJK SC","Songti SC","Source Han Serif SC
 .body h3{font-size:22px;margin:30px 0 8px;scroll-margin-top:84px}.body h3.sec-cn{color:var(--cn)}.body h3.sec-intl{color:var(--intl)}
 .body hr{border:0;border-top:1px solid var(--line);margin:32px 0}.body h4{font-size:17px;margin:20px 0 4px}.src{font-size:13px;color:var(--mute);word-break:break-all;margin:2px 0}.src a,.body a{color:var(--weekly);text-decoration:underline}
 .back{display:inline-block;margin-top:30px;color:var(--mute)}.foot{color:var(--mute);font-size:13px;padding:40px 20px;border-top:1px solid var(--line);margin-top:40px}
-@media(max-width:700px){.subs,.regions{grid-template-columns:1fr}.hero h1{font-size:28px}.nav{height:auto;min-height:60px;flex-wrap:wrap;padding:8px 38px 10px;padding-left:max(38px,env(safe-area-inset-left,0px) + 16px);padding-right:max(38px,env(safe-area-inset-right,0px) + 16px)}.nav nav a{margin-left:12px;font-size:14px}}
+@media(max-width:700px){.regions{grid-template-columns:1fr}.hero h1{font-size:28px}.nav{height:auto;min-height:60px;flex-wrap:wrap;padding:8px 38px 10px;padding-left:max(38px,env(safe-area-inset-left,0px) + 16px);padding-right:max(38px,env(safe-area-inset-right,0px) + 16px)}.nav nav a{margin-left:12px;font-size:14px}}
 /* 平板 / iPad（含横屏）：轨道至少 340px，在 1080 内容列里最多两列 */
 @media(min-width:701px){.grid{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}}
 /* 桌面：内容列约 1040px 时最多三列；条目不足时 auto-fit 仍会收起空列 */

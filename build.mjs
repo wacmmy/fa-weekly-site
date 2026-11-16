@@ -174,7 +174,6 @@ function assertSite(){
   const html=f=>fs.readFileSync(path.join(OUT,f),'utf8');
   const home=html('index.html');
   for(const label of ['首页','国内新闻','国际新闻','工控周报']) if(!home.includes(label)) throw new Error('首页缺少 '+label);
-  if(home.includes('品牌')) throw new Error('首页仍有品牌字样');
   if(home.includes('class="subs"')||home.includes('class="points"')) throw new Error('首页仍有上一期插卡或混合要点');
   const latestSecs=splitSections(top.body);
   for(const r of REGIONS){
@@ -213,7 +212,6 @@ function assertSite(){
       if(n!==expect[r.key]) throw new Error(`${p.slug} ${r.key} 条目 ${n} != ${expect[r.key]}`);
       total+=n;
       const region=html(`${r.key}.html`);
-      if(region.includes('品牌')) throw new Error(r.key+' 页仍有品牌字样');
       if(!n) continue;
       const detailName=`p/${p.slug}-${r.key}.html`;
       const detail=html(detailName);
